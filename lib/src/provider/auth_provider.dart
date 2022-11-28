@@ -6,13 +6,17 @@ class TokenState extends StateNotifier<TokenModel> {
   TokenState(this.ref)
       : super(const TokenModel(accessToken: "", refreshToken: "")) {}
   final Ref ref;
+  setToken(TokenModel token) {
+    state = token;
+    ref.read(isLoggedIn.notifier).state = true;
+  }
 }
 
 final tokenProvider = StateNotifierProvider<TokenState, TokenModel>((ref) {
   return TokenState(ref);
 });
 
-final userTokenProvider = StateProvider<String>((ref) => "");
+final isLoggedIn = StateProvider<bool>((ref) => false);
 
 /*
 final userToken = StateProvider<String>(

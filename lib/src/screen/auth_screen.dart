@@ -10,7 +10,6 @@ class AuthScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final authState = ref.watch(userTokenProvider);
-    return (authState == "") ? SignInScreen() : const HomeScreen();
+    return (!ref.watch(isLoggedIn)) ? SignInScreen() : const HomeScreen();
   }
 }

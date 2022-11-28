@@ -1,35 +1,57 @@
+import 'package:bluebooks/src/model/token_model.dart';
+import 'package:bluebooks/src/provider/auth_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import '../model/user_model.dart';
 import '../model/error_model.dart';
 import 'dart:convert';
+import '../service/server.dart';
 
-final authRepositoryProvider = Provider((ref) => AuthRepository(ref.read));
+final authRepositoryProvider = Provider((ref) => AuthRepository(ref));
 
 class AuthRepository {
-  AuthRepository(this.reader);
+  AuthRepository(this.ref);
 
   /// The `ref.read` function
-  final reader;
+  final Ref ref;
 
   Future<ErrorModel?> login(UserLoginForm form) async {
-    var test = UserLoginForm.toJson(form);
-    final response =
-        await http.post(Uri.parse('http://localhost:4070/api/v1/auth/login'),
-            headers: <String, String>{
-              'Content-Type': 'application/json; charset=UTF-8',
-            },
-            body: jsonEncode(UserLoginForm.toJson(form)));
-    if (response.statusCode != 200) {
-      try {
-        return ErrorResponse.fromJson(jsonDecode(response.body)).error;
-      } catch (e) {
-        return ErrorModel(message: e.toString());
-      }
+    final serverResponse = await Server.post(
+        '/auth/login', jsonEncode(UserLoginForm.toJson(form)));
+
+    if (serverResponse.error != null) {
+      return serverResponse.error;
     }
+
+    TokenModel token = TokenModel.fromJson(jsonDecode(serverResponse.body));
+    await _saveToken(token.accessToken, token.refreshToken);
+
+    ref.read(tokenProvider.notifier).setToken(token);
+
     return null;
   }
+
+  Future<void> _saveToken(String accessToken, String refreshToken) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('accessToken', accessToken);
+    await prefs.setString('refreshToken', refreshToken);
+  }
+
+  Future<TokenModel?> _loadToken(
+      String accessToken, String refreshToken) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    var accessToken = prefs.getString('accessToken');
+    var refreshToken = prefs.getString('refreshToken');
+
+    if (accessToken == null || refreshToken == null) {
+      return null;
+    }
+
+    return TokenModel(accessToken: accessToken, refreshToken: refreshToken);
+  }
+
 /*
   Future<Catalog> fetchCatalog() async {
     String token = ref.read(tokenProvid);
