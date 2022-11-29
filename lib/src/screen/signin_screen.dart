@@ -1,30 +1,11 @@
 import 'package:bluebooks/src/model/user_model.dart';
+import 'package:bluebooks/src/provider/provider.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:convert';
 import '../repository/auth_repository.dart';
 import '../util/dialogs.dart';
-
-class ServerRequest {
-  /*
-  static getUserLogin(
-      BuildContext context, String email, String password) async {
-    final form = UserLoginForm(email: email, password: password);
-    final response =
-        await http.post(Uri.parse('http://localhost:4070/api/v1/auth/login'),
-            headers: <String, String>{
-              'Content-Type': 'application/json; charset=UTF-8',
-            },
-            body: jsonEncode(form));
-    if (response.statusCode != 200) {
-      CustomDialog.showAlertDialog(context: context, text: "fehler");
-      return;
-    }
-    
-  }
-  */
-}
 
 class SignInScreen extends ConsumerWidget {
   TextEditingController email = new TextEditingController();
@@ -34,6 +15,7 @@ class SignInScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     //final test = ref.watch(loggedIn);
+    debugPrint("build SignInScreen");
 
     return Scaffold(
       appBar: AppBar(
@@ -56,7 +38,7 @@ class SignInScreen extends ConsumerWidget {
               ),
               ElevatedButton(
                 onPressed: () async {
-                  final provider = ref.read(authRepositoryProvider);
+                  final provider = ref.read(authStateProvider.notifier);
                   final error = await provider.login(UserLoginForm(
                       email: email.text, password: password.text));
 

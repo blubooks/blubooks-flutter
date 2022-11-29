@@ -1,106 +1,107 @@
 import 'package:bluebooks/src/model/token_model.dart';
-import 'package:bluebooks/src/provider/auth_provider.dart';
+import 'package:bluebooks/src/screen/signin_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import '../model/user_model.dart';
 import '../model/error_model.dart';
 import 'dart:convert';
-import '../service/server.dart';
+import '../service/request_service.dart';
+import 'dart:io';
 
-final authRepositoryProvider = Provider((ref) => AuthRepository(ref));
-
-class AuthRepository {
-  AuthRepository(this.ref);
-
-  /// The `ref.read` function
+class TokenRepoitory extends StateNotifier<TokenModel?> {
+  TokenRepoitory(this.ref) : super(null);
   final Ref ref;
 
   Future<ErrorModel?> login(UserLoginForm form) async {
-    final serverResponse = await Server.post(
-        '/auth/login', jsonEncode(UserLoginForm.toJson(form)));
+    final serverResponse =
+        await jsonPost('/auth/login', jsonEncode(UserLoginForm.toJson(form)));
 
     if (serverResponse.error != null) {
       return serverResponse.error;
     }
-
-    TokenModel token = TokenModel.fromJson(jsonDecode(serverResponse.body));
-    await _saveToken(token.accessToken, token.refreshToken);
-
-    ref.read(tokenProvider.notifier).setToken(token);
-
+    var test = jsonDecode(serverResponse.body);
+    TokenModel token = TokenModel.fromJson(test);
+    await _saveToken(token);
+    state = token;
     return null;
   }
 
-  Future<void> _saveToken(String accessToken, String refreshToken) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setString('accessToken', accessToken);
-    await prefs.setString('refreshToken', refreshToken);
+  Future<void> logout() async {
+    await _deleteToken();
+    state = null;
+    /*
+    final serverResponse =
+        await jsonPost('/auth/login', jsonEncode(UserLoginForm.toJson(form)));
+
+    if (serverResponse.error != null) {
+      return serverResponse.error;
+    }
+    var test = jsonDecode(serverResponse.body);
+    TokenModel token = TokenModel.fromJson(test);
+    await _saveToken(token.accessToken, token.refreshToken);
+    state = token;
+    return null;
+    */
   }
 
-  Future<TokenModel?> _loadToken(
-      String accessToken, String refreshToken) async {
+  static Future<void> _saveToken(TokenModel token) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    await prefs.setString('accessToken', token.accessToken);
+    await prefs.setString('refreshToken', token.refreshToken);
+  }
+
+  static Future<void> _deleteToken() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.remove('accessToken');
+    await prefs.remove('refreshToken');
+  }
+
+  Future<void> getToken() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
 
     var accessToken = prefs.getString('accessToken');
     var refreshToken = prefs.getString('refreshToken');
 
     if (accessToken == null || refreshToken == null) {
-      return null;
+      return;
     }
 
-    return TokenModel(accessToken: accessToken, refreshToken: refreshToken);
+    state = TokenModel(accessToken: accessToken, refreshToken: refreshToken);
   }
 
-/*
-  Future<Catalog> fetchCatalog() async {
-    String token = ref.read(tokenProvid);
+  Future<ServerResponse> jsonPost(String api, String postData) async {
+    final headers = <String, String>{
+      'Content-Type': 'application/json; charset=UTF-8',
+    };
 
-    final response = await dio.get('/path', queryParameters: {
-      'token': token,
-    });
+    if (state != null) {
+      headers[HttpHeaders.authorizationHeader] = "Barer ${state!.accessToken}";
+    }
 
-    return Catalog.fromJson(response.data);
+    final response = await http.post(Uri.parse('$url$api'),
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: postData);
+
+    return ServerResponse(response.statusCode, response.body);
   }
-  */
+
+  Future<ServerResponse> jsonGet(String api) async {
+    final headers = <String, String>{
+      'Content-Type': 'application/json; charset=UTF-8',
+    };
+
+    if (state != null) {
+      headers[HttpHeaders.authorizationHeader] = "Barer ${state!.accessToken}";
+    }
+
+    final response = await http.get(Uri.parse('$url$api'), headers: headers);
+
+    return ServerResponse(response.statusCode, response.body);
+  }
+
+  void dispose() {}
 }
-
-/*
-class AuthRepository {
-  static Future<void> signIn(ref) async {
-    var login = "test";
-
-    await saveToken(login);
-
-    ref.read(loggedIn.notifier).state = login;
-  }
-
-  static Future<void> loadToken(ref) async {
-    final token = await getToken();
-    ref.read(loggedIn.notifier).state = token;
-  }
-
-  static Future<void> logout(ref) async {
-    await removToken();
-    ref.read(loggedIn.notifier).state = null;
-  }
-
-  static Future<String?> getToken() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-
-    return prefs.getString('jwt');
-  }
-
-  static saveToken(String token) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setString('jwt', token);
-  }
-
-  static removToken() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.remove('jwt');
-  }
-}
-
-final loggedIn = StateProvider<String?>((ref) => "");
-*/

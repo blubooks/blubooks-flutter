@@ -1,6 +1,10 @@
 import 'package:bluebooks/src/model/error_model.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:io';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../provider/provider.dart';
 
 const url = "http://localhost:4070/api/v1";
 
@@ -15,14 +19,25 @@ class ServerResponse {
       } catch (e) {
         error = ErrorModel(message: e.toString());
       }
+    } else {
+      error = null;
     }
-    error = null;
   }
 }
 
-class Server {
-  static Future<ServerResponse> post(String api, String postData) async {
-    Map<ErrorModel?, String> ret = {};
+class RequestService {
+  static Future<ServerResponse> jsonPost(
+      Ref ref, String api, String postData) async {
+    final headers = <String, String>{
+      'Content-Type': 'application/json; charset=UTF-8',
+    };
+
+    var token = ref.read(authStateProvider);
+
+    if (token != null) {
+      headers[HttpHeaders.authorizationHeader] = "Barer ${token.accessToken}";
+    }
+
     final response = await http.post(Uri.parse('$url$api'),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
